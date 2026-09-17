@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Мультиплеер + лобби + чат</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background: #0b0e14;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 16px;
+    }
+
+    .game-wrapper {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: stretch;
+      max-width: 1100px;
+      width: 100%;
+    }
+
+    /* ========= ЛОББИ ЭКРАН ========= */
+    .lobby-overlay {
+      position: fixed;
+      inset: 0;
+      background: #0b0e14ee;
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+      transition: opacity 0.3s;
+    }
+
+    .lobby-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .lobby-card {
+      background: #151a22;
+      border-radius: 28px;
+      padding: 32px;
+      max-width: 460px;
+      width: 100%;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
+      border: 1px solid #2d3748;
+    }
+
+    .lobby-card h1 {
+      color: #e2e8f0;
+      font-size: 1.7rem;
+      margin-bottom: 6px;
+      text-align: center;
+    }
+
+    .lobby-card .subtitle {
+      color: #94a3b8;
+      font-size: 0.9rem;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .lobby-section {
+      background: #0f131a;
+      border-radius: 18px;
+      padding: 20px;
+      margin-bottom: 16px;
+      border: 1px solid #2d3748;
+    }
+
+    .lobby-section h2 {
+      color: #cbd5e1;
+      font-size: 1rem;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .lobby-section .hint {
+      color: #64748b;
+      font-size: 0.8rem;
+      margin-bottom: 12px;
+      line-height: 1.4;
+    }
+
+    .lobby-btn {
+      background: #3b82f6;
+      border: none;
+      border-radius: 40px;
+      padding: 14px 24px;
+      color: white;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.15s;
+      width: 100%;
+      margin-bottom: 8px;
+    }
+
+    .lobby-btn:hover {
+      background: #2563eb;
+    }
+
+    .lobby-btn:active {
+      transform: scale(0.98);
+    }
+
+    .lobby-btn.secondary {
+      background: #2d3748;
+      color: #cbd5e1;
+    }
+
+    .lobby-btn.secondary:hover {
+      background: #4a5568;
+      color: white;
+    }
+
+    .lobby-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .lobby-code {
+      background: #1e2530;
+      border: 1px solid #3b82f6;
+      border-radius: 12px;
+      padding: 14px 18px;
+      color: #93c5fd;
+      font-family: 'Courier New', monospace;
+      font-size: 1.5rem;
+      font-weight: 700;
+      text-align: center;
+      letter-spacing: 4px;
+      margin: 12px 0;
+      user-select: all;
+      cursor: pointer;
+    }
+
+    .lobby-code:hover {
+      background: #253041;
+    }
+
+    .lobby-code-hint {
+      color: #64748b;
+      font-size: 0.75rem;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+
+    .join-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .join-row input {
+      flex: 1;
+      background: #1e2530;
+      border: 1px solid #2d3748;
+      border-radius: 40px;
+      padding: 12px 18px;
+      color: #f1f5f9;
+      font-size: 0.95rem;
+      outline: none;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      text-align: center;
+      font-family: 'Courier New', monospace;
+      font-weight: 600;
+    }
+
+    .join-row input:focus {
+      border-color: #3b82f6;
+    }
+
+    .status-text {
+      color: #94a3b8;
+      font-size: 0.85rem;
+      text-align: center;
+      margin-top: 12px;
+      min-height: 20px;
+    }
+
+    .status-text.error {
+      color: #f87171;
+    }
+
+    .status-text.success {
+      color: #4ade80;
+    }
+
+    .player-list {
+      margin-top: 12px;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+
+    .player-list-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: #1e2530;
+      border-radius: 10px;
+      margin-bottom: 6px;
+      color: #e2e8f0;
+      font-size: 0.85rem;
+    }
+
+    .player-list-item .dot-color {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .player-list-item .you {
+      color: #93c5fd;
+      font-size: 0.75rem;
+      margin-left: auto;
+    }
+
+    /* ========= ИГРОВАЯ ЗОНА ========= */
+    .game-area {
+      background: #151a22;
+      border-radius: 28px;
+      padding: 20px;
+      box-shadow: 0 20px 30px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .canvas-container {
+      position: relative;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: inset 0 0 10px #00000055, 0 0 0 2px #2d3748;
+    }
+
+    canvas {
+      display: block;
+      width: 600px;
+      height: 600px;
+      background: #1f2937;
+      cursor: crosshair;
+    }
+
+    .player-stats {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      margin-top: 16px;
+      color: #cbd5e1;
+      font-weight: 500;
+      background: #0f131a;
+      padding: 12px 20px;
+      border-radius: 50px;
+      font-size: 0.9rem;
+      border: 1px solid #2d3748;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .player-stats span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge {
+      background: #2d3748;
+      padding: 4px 12px;
+      border-radius: 30px;
+      font-size: 0.8rem;
+      color: #a0aec0;
+    }
+
+    .room-badge {
+      background: #1e3a5f;
+      color: #93c5fd;
+      padding: 4px 12px;
+      border-radius: 30px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 1px;
+    }
+
+    .connection-status {
+      font-size: 0.8rem;
+      padding: 4px 12px;
+      border-radius: 30px;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+
+    .connection-status.connected {
+      background: #065f46;
+      color: #a7f3d0;
+    }
+
+    .connection-status.connecting {
+      background: #92400e;
+      color: #fde68a;
+    }
+
+    .connection-status.disconnected {
+      background: #7f1d1d;
+      color: #fecaca;
+    }
+
+    /* ========= ЧАТ ========= */
+    .chat-panel {
+      background: #151a22;
+      border-radius: 28px;
+      width: 340px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 30px rgba(0, 0, 0, 0.6);
+      overflow: hidden;
+      border: 1px solid #2d3748;
+      height: 690px;
+    }
+
+    .chat-header {
+      padding: 18px 20px;
+      background: #0f131a;
+      border-bottom: 1px solid #2d3748;
+      color: #e2e8f0;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .chat-header .dot {
+      width: 10px;
+      height: 10px;
+      background: #22c55e;
+      border-radius: 50%;
+      display: inline-block;
+      box-shadow: 0 0 8px #22c55e;
+      transition: all 0.3s;
+    }
+
+    .chat-header .dot.offline {
+      background: #ef4444;
+      box-shadow: 0 0 8px #ef4444;
+    }
+
+    .messages {
+      flex: 1;
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: #11161d;
+      scrollbar-width: thin;
+      scrollbar-color: #2d3748 #0f131a;
+    }
+
+    .messages::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    .messages::-webkit-scrollbar-track {
+      background: #0f131a;
+    }
+
+    .messages::-webkit-scrollbar-thumb {
+      background: #2d3748;
+      border-radius: 10px;
+    }
+
+    .msg {
+      padding: 10px 14px;
+      border-radius: 18px;
+      background: #1e2530;
+      color: #e2e8f0;
+      font-size: 0.9rem;
+      line-height: 1.4;
+      word-break: break-word;
+      max-width: 90%;
+      align-self: flex-start;
+      border: 1px solid #2d3748;
+      box-shadow: 0 2px 4px #00000033;
+    }
+
+    .msg.self {
+      align-self: flex-end;
+      background: #1e3a5f;
+      border-color: #3b82f6;
+      color: #f0f9ff;
+    }
+
+    .msg .nick {
+      font-weight: 700;
+      color: #90cdf4;
+      margin-right: 6px;
+    }
+
+    .msg.self .nick {
+      color: #bfdbfe;
+    }
+
+    .msg .text {
+      word-break: break-word;
+    }
+
+    .msg.system {
+      background: #2d3748;
+      color: #cbd5e1;
+      font-style: italic;
+      align-self: center;
+      font-size: 0.8rem;
+      border-radius: 30px;
+      padding: 5px 16px;
+      border: none;
+      box-shadow: none;
+      max-width: 95%;
+    }
+
+    .chat-input-area {
+      display: flex;
+      padding: 14px 16px;
+      background: #0f131a;
+      border-top: 1px solid #2d3748;
+      gap: 10px;
+    }
+
+    .chat-input-area input {
+      flex: 1;
+      background: #1e2530;
+      border: 1px solid #2d3748;
+      border-radius: 40px;
+      padding: 12px 18px;
+      color: #f1f5f9;
+      font-size: 0.9rem;
+      outline: none;
+      transition: 0.2s;
+    }
+
+    .chat-input-area input:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px #3b82f633;
+    }
+
+    .chat-input-area input::placeholder {
+      color: #6b7280;
+    }
+
+    .chat-input-area button {
+      background: #3b82f6;
+      border: none;
+      border-radius: 40px;
+      padding: 0 22px;
+      color: white;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .chat-input-area button:hover {
+      background: #2563eb;
+    }
+
+    .nick-input {
+      background: #0f131a;
+      border: 1px solid #2d3748;
+      border-radius: 40px;
+      padding: 10px 16px;
+      color: white;
+      width: 100%;
+      outline: none;
+      font-size: 0.9rem;
+    }
+
+    .nick-input:focus {
+      border-color: #3b82f6;
+    }
+
+    .nick-row {
+      padding: 12px 16px 0;
+      display: flex;
+      gap: 8px;
+      background: #0f131a;
+    }
+
+    .nick-row button {
+      background: #2d3748;
+      border: none;
+      border-radius: 30px;
+      padding: 0 18px;
+      color: #cbd5e1;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+
+    .nick-row button:hover {
+      background: #4a5568;
+      color: white;
+    }
+
+    @media (max-width: 980px) {
+      .game-wrapper {
+        flex-direction: column;
+        align-items: center;
+      }
+      .chat-panel {
+        width: 100%;
+        max-width: 600px;
+        height: 480px;
+      }
+      canvas {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 1/1;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ========= ЛОББИ ЭКРАН ========= -->
+<div class="lobby-overlay" id="lobbyOverlay">
+  <div class="lobby-card">
+    <h1>🎮 Мультиплеер</h1>
+    <p class="subtitle">Играйте с друзьями в реальном времени</p>
+
+    <!-- Никнейм -->
+    <div class="lobby-section">
+      <h2>👤 Ваш ник</h2>
+      <input type="text" id="lobbyNickInput" class="nick-input" placeholder="Введите ник" maxlength="16" value="Игрок">
+    </div>
+
+    <!-- Создать комнату -->
+    <div class="lobby-section" id="createSection">
+      <h2>🎯 Создать лобби</h2>
+      <p class="hint">Создайте комнату и отправьте код другу для подключения</p>
+      <button class="lobby-btn" id="createRoomBtn">➕ Создать комнату</button>
+      <div id="roomCodeDisplay" style="display:none;">
+        <div class="lobby-code" id="roomCodeText" title="Нажмите, чтобы скопировать">----</div>
+        <p class="lobby-code-hint">Нажмите на код, чтобы скопировать</p>
+        <div class="player-list" id="lobbyPlayerList"></div>
+        <button class="lobby-btn" id="startGameBtn" style="margin-top:12px;">🚀 Начать игру</button>
+      </div>
+    </div>
+
+    <!-- Присоединиться -->
+    <div class="lobby-section">
+      <h2>🔗 Присоединиться</h2>
+      <p class="hint">Введите код комнаты, который вам прислал друг</p>
+      <div class="join-row">
+        <input type="text" id="joinCodeInput" placeholder="КОД" maxlength="6" autocomplete="off">
+        <button class="lobby-btn secondary" id="joinRoomBtn" style="width:auto;margin:0;padding:12px 20px;">Войти</button>
+      </div>
+    </div>
+
+    <div class="status-text" id="lobbyStatus"></div>
+  </div>
+</div>
+
+<!-- ========= ИГРА ========= -->
+<div class="game-wrapper" id="gameWrapper" style="display:none;">
+  <div class="game-area">
+    <div class="canvas-container">
+      <canvas id="gameCanvas" width="600" height="600"></canvas>
+    </div>
+    <div class="player-stats">
+      <span>🎮 <span id="playerCount">1</span> игрок(ов)</span>
+      <span class="room-badge" id="roomBadge">ROOM: ----</span>
+      <span id="connectionStatus" class="connection-status connecting">⏳ Подключение...</span>
+      <span class="badge">🖱️ ЛКМ — двигаться</span>
+    </div>
+  </div>
+
+  <div class="chat-panel">
+    <div class="chat-header">
+      <span class="dot" id="chatDot"></span> Мультиплеер-чат
+    </div>
+    <div class="nick-row">
+      <input type="text" id="nicknameInput" class="nick-input" placeholder="Ваш ник" maxlength="16" value="Игрок">
+      <button id="setNickBtn">Сменить</button>
+    </div>
+    <div class="messages" id="messagesContainer">
+      <div class="msg system">Добро пожаловать в игру! Кликайте по полю, чтобы двигаться.</div>
+    </div>
+    <div class="chat-input-area">
+      <input type="text" id="messageInput" placeholder="Написать сообщение..." maxlength="120" autocomplete="off">
+      <button id="sendBtn">➤</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========= PEERJS CDN ========= -->
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+<script>
+  (function() {
+    // ========== КОНФИГ ==========
+    const CANVAS_W = 600, CANVAS_H = 600;
+    const PLAYER_RADIUS = 16;
+    const MOVE_SPEED = 3.8;
+    const SYNC_INTERVAL = 80;           // мс между отправками позиции
+
+    // ========== DOM ==========
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const messagesContainer = document.getElementById('messagesContainer');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const nicknameInput = document.getElementById('nicknameInput');
+    const setNickBtn = document.getElementById('setNickBtn');
+    const playerCountSpan = document.getElementById('playerCount');
+    const connectionStatus = document.getElementById('connectionStatus');
+    const chatDot = document.getElementById('chatDot');
+    const roomBadge = document.getElementById('roomBadge');
+
+    // Лобби DOM
+    const lobbyOverlay = document.getElementById('lobbyOverlay');
+    const gameWrapper = document.getElementById('gameWrapper');
+    const lobbyNickInput = document.getElementById('lobbyNickInput');
+    const createRoomBtn = document.getElementById('createRoomBtn');
+    const roomCodeDisplay = document.getElementById('roomCodeDisplay');
+    const roomCodeText = document.getElementById('roomCodeText');
+    const joinCodeInput = document.getElementById('joinCodeInput');
+    const joinRoomBtn = document.getElementById('joinRoomBtn');
+    const lobbyStatus = document.getElementById('lobbyStatus');
+    const startGameBtn = document.getElementById('startGameBtn');
+    const lobbyPlayerList = document.getElementById('lobbyPlayerList');
+
+    // ========== СОСТОЯНИЕ ==========
+    let myId = 'p_' + Math.random().toString(36).substring(2, 10) + Date.now();
+    let myNick = 'Игрок_' + Math.floor(Math.random() * 100);
+    lobbyNickInput.value = myNick;
+
+    let myPos = { x: CANVAS_W / 2, y: CANVAS_H / 2 };
+    let targetPos = { ...myPos };
+
+    const players = new Map(); // id -> {x,y,targetX,targetY,nick,color}
+    let peer = null;
+    let connections = new Map(); // peerId -> DataConnection
+    let isHost = false;
+    let roomCode = null;
+    let gameStarted = false;
+
+    // ========== УТИЛИТЫ ==========
+    function getColorFromId(id) {
+      let hash = 0;
+      for (let i = 0; i < id.length; i++) {
+        hash = id.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const hue = Math.abs(hash) % 360;
+      return `hsl(${hue}, 70%, 60%)`;
+    }
+
+    const myColor = getColorFromId(myId);
+
+    function generateRoomCode() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let code = '';
+      for (let i = 0; i < 6; i++) {
+        code += chars[Math.floor(Math.random() * chars.length)];
+      }
+      return code;
+    }
+
+    function setLobbyStatus(text, type) {
+      lobbyStatus.textContent = text;
+      lobbyStatus.className = 'status-text' + (type ? ' ' + type : '');
+    }
+
+    function setConnectionStatus(status) {
+      connectionStatus.className = 'connection-status ' + status;
+      switch (status) {
+        case 'connected': connectionStatus.textContent = '🟢 Онлайн'; break;
+        case 'connecting': connectionStatus.textContent = '🟡 Подключение...'; break;
+        case 'disconnected': connectionStatus.textContent = '🔴 Офлайн'; break;
+      }
+    }
+
+    function updateChatDot(offline) {
+      chatDot.classList.toggle('offline', offline);
+    }
+
+    function escapeHtml(unsafe) {
+      if (!unsafe) return '';
+      return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // ========== ЧАТ ==========
+    function addChatMessage(msg, isSelf) {
+      const div = document.createElement('div');
+      div.className = 'msg' + (isSelf ? ' self' : '');
+      div.innerHTML = `<span class="nick">${escapeHtml(msg.nick)}:</span> <span class="text">${escapeHtml(msg.text)}</span>`;
+      messagesContainer.appendChild(div);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      trimMessages();
+    }
+
+    function addSystemMessage(text) {
+      const div = document.createElement('div');
+      div.className = 'msg system';
+      div.textContent = text;
+      messagesContainer.appendChild(div);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      trimMessages();
+    }
+
+    function trimMessages() {
+      while (messagesContainer.children.length > 200) {
+        messagesContainer.removeChild(messagesContainer.firstChild);
+      }
+    }
+
+    // ========== PLAYER LIST В ЛОББИ ==========
+    function updateLobbyPlayerList() {
+      if (!lobbyPlayerList) return;
+      lobbyPlayerList.innerHTML = '';
+
+      // Я
+      const selfItem = document.createElement('div');
+      selfItem.className = 'player-list-item';
+      selfItem.innerHTML = `
+        <span class="dot-color" style="background:${myColor}"></span>
+        <span>${escapeHtml(myNick)}</span>
+        <span class="you">(вы)</span>
+      `;
+      lobbyPlayerList.appendChild(selfItem);
+
+      // Остальные
+      for (const [id, p] of players.entries()) {
+        const item = document.createElement('div');
+        item.className = 'player-list-item';
+        item.innerHTML = `
+          <span class="dot-color" style="background:${p.color}"></span>
+          <span>${escapeHtml(p.nick)}</span>
+        `;
+        lobbyPlayerList.appendChild(item);
+      }
+    }
+
+    // ========== PEERJS ==========
+    function initPeer(customId) {
+      // Если peer уже есть, уничтожаем
+      if (peer) {
+        try { peer.destroy(); } catch(e) {}
+        peer = null;
+      }
+
+      setConnectionStatus('connecting');
+      updateChatDot(true);
+
+      // Используем префикс, чтобы не конфликтовать с другими peerjs-приложениями
+      const peerId = 'mpgame-' + (customId || generateRoomCode());
+
+      peer = new Peer(peerId, {
+        debug: 1,
+        config: {
+          'iceServers': [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+          ]
+        }
+      });
+
+      peer.on('open', (id) => {
+        console.log('Peer открыт с ID:', id);
+        setConnectionStatus('connected');
+        updateChatDot(false);
+
+        if (isHost) {
+          roomCode = id.replace('mpgame-', '');
+          roomCodeText.textContent = roomCode;
+          roomCodeDisplay.style.display = 'block';
+          roomBadge.textContent = 'ROOM: ' + roomCode;
+          setLobbyStatus(`Комната создана! Код: ${roomCode}`, 'success');
+        }
+      });
+
+      peer.on('connection', (conn) => {
+        console.log('Входящее подключение от:', conn.peer);
+        setupConnection(conn);
+      });
+
+      peer.on('error', (err) => {
+        console.error('PeerJS ошибка:', err);
+        setConnectionStatus('disconnected');
+        updateChatDot(true);
+
+        if (err.type === 'unavailable-id') {
+          setLobbyStatus('Этот код уже занят, попробуйте другой', 'error');
+        } else if (err.type === 'peer-unavailable') {
+          setLobbyStatus('Комната не найдена. Проверьте код.', 'error');
+        } else {
+          setLobbyStatus('Ошибка подключения: ' + err.type, 'error');
+        }
+      });
+
+      peer.on('disconnected', () => {
+        console.log('Peer отключен');
+        setConnectionStatus('disconnected');
+        updateChatDot(true);
+        // Пытаемся переподключиться
+        try { peer.reconnect(); } catch(e) {}
+      });
+    }
+
+    function setupConnection(conn) {
+      connections.set(conn.peer, conn);
+
+      conn.on('open', () => {
+        console.log('Соединение открыто с:', conn.peer);
+
+        // Отправляем свои данные
+        conn.send({
+          type: 'playerState',
+          id: myId,
+          nick: myNick,
+          x: myPos.x,
+          y: myPos.y,
+          color: myColor,
+          timestamp: Date.now()
+        });
+
+        // Если мы хост, отправляем список всех игроков
+        if (isHost) {
+          const allPlayers = [{
+            id: myId, nick: myNick, x: myPos.x, y: myPos.y, color: myColor
+          }];
+          for (const p of players.values()) {
+            allPlayers.push(p);
+          }
+          conn.send({ type: 'fullState', players: allPlayers });
+
+          // Уведомляем остальных о новом игроке
+          broadcastToAll({
+            type: 'playerJoined',
+            id: conn.peer,
+            nick: 'Новый игрок'
+          }, conn.peer);
+        }
+      });
+
+      conn.on('data', (data) => {
+        handleIncomingData(data, conn);
+      });
+
+      conn.on('close', () => {
+        console.log('Соединение закрыто:', conn.peer);
+        connections.delete(conn.peer);
+
+        // Ищем игрока по peer id (может быть связь peer->player id)
+        // У нас player.id — это сгенерированный ID, а conn.peer — peer id.
+        // Нужно найти player по какому-то признаку. Будем хранить mapping.
+        // Проще: удаляем по conn.peer, если есть связь. Но у нас player id отдельный.
+        // Для простоты: пробегаемся по players и удаляем тех, чей peerId совпадает.
+        // Добавим поле peerId в player.
+
+        let removedNick = null;
+        for (const [pid, p] of players.entries()) {
+          if (p.peerId === conn.peer) {
+            removedNick = p.nick;
+            players.delete(pid);
+            break;
+          }
+        }
+        if (removedNick) {
+          addSystemMessage(`${removedNick} покинул игру`);
+        }
+        updatePlayerCount();
+        updateLobbyPlayerList();
+      });
+
+      conn.on('error', (err) => {
+        console.error('Ошибка соединения:', err);
+      });
+    }
+
+    function handleIncomingData(data, conn) {
+      if (!data || !data.type) return;
+
+      // Игнорируем сообщения от себя
+      if (data.id === myId) return;
+
+      switch (data.type) {
+        case 'playerState':
+          handleRemotePlayerState(data, conn.peer);
+          break;
+        case 'chat':
+          addChatMessage(data, false);
+          // Если мы хост — ретранслируем остальным
+          if (isHost) {
+            broadcastToAll(data, conn.peer);
+          }
+          break;
+        case 'playerLeave':
+          handlePlayerLeave(data);
+          break;
+        case 'playerJoined':
+          addSystemMessage(`${data.nick || 'Игрок'} присоединился к игре`);
+          break;
+        case 'fullState':
+          if (Array.isArray(data.players)) {
+            data.players.forEach(p => {
+              if (p.id !== myId) handleRemotePlayerState(p, null);
+            });
+          }
+          break;
+        case 'requestState':
+          // Отправляем своё состояние
+          conn.send({
+            type: 'playerState',
+            id: myId,
+            nick: myNick,
+            x: myPos.x,
+            y: myPos.y,
+            color: myColor,
+            timestamp: Date.now()
+          });
+          break;
+        case 'startGame':
+          // Хост запустил игру
+          gameStarted = true;
+          showGame();
+          addSystemMessage('Игра началась!');
+          break;
+      }
+    }
+
+    function handleRemotePlayerState(data, peerId) {
+      const { id, nick, x, y, color } = data;
+      if (!id || id === myId) return;
+
+      const existing = players.get(id);
+      if (existing) {
+        existing.targetX = x;
+        existing.targetY = y;
+        existing.nick = nick;
+        if (color) existing.color = color;
+        if (peerId) existing.peerId = peerId;
+      } else {
+        players.set(id, {
+          x: x,
+          y: y,
+          targetX: x,
+          targetY: y,
+          nick: nick,
+          color: color || getColorFromId(id),
+          peerId: peerId || null
+        });
+        addSystemMessage(`${nick} присоединился к игре`);
+        updatePlayerCount();
+        updateLobbyPlayerList();
+      }
+    }
+
+    function handlePlayerLeave(data) {
+      if (players.has(data.id)) {
+        const leftNick = players.get(data.id)?.nick || data.nick || 'Игрок';
+        players.delete(data.id);
+        updatePlayerCount();
+        updateLobbyPlayerList();
+        addSystemMessage(`${leftNick} покинул игру`);
+      }
+    }
+
+    function broadcastToAll(message, excludePeerId) {
+      for (const [peerId, conn] of connections.entries()) {
+        if (peerId === excludePeerId) continue;
+        if (conn.open) {
+          try { conn.send(message); } catch(e) {}
+        }
+      }
+    }
+
+    function sendToAll(message) {
+      broadcastToAll(message, null);
+    }
+
+    // ========== ЛОББИ: СОЗДАНИЕ КОМНАТЫ ==========
+    createRoomBtn.addEventListener('click', () => {
+      myNick = lobbyNickInput.value.trim().slice(0, 16) || 'Игрок';
+      nicknameInput.value = myNick;
+      isHost = true;
+      roomCodeDisplay.style.display = 'block';
+      createRoomBtn.disabled = true;
+      createRoomBtn.textContent = '⏳ Создание...';
+      setLobbyStatus('Создание комнаты...');
+
+      // Генерируем код и создаём peer с этим ID
+      roomCode = generateRoomCode();
+      roomCodeText.textContent = roomCode;
+      roomBadge.textContent = 'ROOM: ' + roomCode;
+
+      initPeer(roomCode);
+      updateLobbyPlayerList();
+    });
+
+    // Копирование кода
+    roomCodeText.addEventListener('click', () => {
+      const code = roomCodeText.textContent;
+      if (code && code !== '----') {
+        navigator.clipboard.writeText(code).then(() => {
+          setLobbyStatus('Код скопирован!', 'success');
+          setTimeout(() => setLobbyStatus(''), 2000);
+        }).catch(() => {
+          // Fallback
+          const range = document.createRange();
+          range.selectNode(roomCodeText);
+          window.getSelection().removeAllRanges();
+          window.getSelection().addRange(range);
+          document.execCommand('copy');
+          setLobbyStatus('Код скопирован!', 'success');
+          setTimeout(() => setLobbyStatus(''), 2000);
+        });
+      }
+    });
+
+    // ========== ЛОББИ: ПРИСОЕДИНЕНИЕ ==========
+    joinRoomBtn.addEventListener('click', () => {
+      const code = joinCodeInput.value.trim().toUpperCase();
+      if (!code || code.length !== 6) {
+        setLobbyStatus('Введите корректный 6-значный код', 'error');
+        return;
+      }
+
+      myNick = lobbyNickInput.value.trim().slice(0, 16) || 'Игрок';
+      nicknameInput.value = myNick;
+      isHost = false;
+      roomCode = code;
+      roomBadge.textContent = 'ROOM: ' + roomCode;
+      joinRoomBtn.disabled = true;
+      joinRoomBtn.textContent = '⏳...';
+      setLobbyStatus('Подключение к комнате...');
+
+      // Создаём peer с рандомным ID и подключаемся к хосту
+      const myPeerId = generateRoomCode(); // случайный id для себя
+      initPeer(myPeerId);
+
+      // После открытия peer подключаемся к хосту
+      const tryConnect = () => {
+        if (peer && peer.open) {
+          const hostPeerId = 'mpgame-' + code;
+          console.log('Подключаюсь к хосту:', hostPeerId);
+          const conn = peer.connect(hostPeerId, { reliable: true });
+          setupConnection(conn);
+        } else {
+          setTimeout(tryConnect, 300);
+        }
+      };
+      setTimeout(tryConnect, 1000);
+    });
+
+    // ========== СТАРТ ИГРЫ ==========
+    startGameBtn.addEventListener('click', () => {
+      if (!isHost) return;
+      gameStarted = true;
+      // Уведомляем всех
+      sendToAll({ type: 'startGame' });
+      showGame();
+      addSystemMessage('Игра началась!');
+    });
+
+    function showGame() {
+      lobbyOverlay.classList.add('hidden');
+      gameWrapper.style.display = 'flex';
+      // Небольшая задержка для корректного ресайза
+      setTimeout(() => {
+        updatePlayerCount();
+      }, 100);
+    }
+
+    // ========== ЧАТ: ОТПРАВКА ==========
+    function sendMessageFromInput() {
+      const text = messageInput.value.trim();
+      if (!text) return;
+
+      const msg = {
+        type: 'chat',
+        id: myId,
+        nick: myNick,
+        text: text,
+        timestamp: Date.now()
+      };
+
+      // Отправляем всем
+      sendToAll(msg);
+      // Себе добавляем
+      addChatMessage(msg, true);
+
+      messageInput.value = '';
+      messageInput.focus();
+    }
+
+    sendBtn.addEventListener('click', sendMessageFromInput);
+    messageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        sendMessageFromInput();
+      }
+    });
+
+    // ========== СМЕНА НИКА ==========
+    function setNickname(newNick) {
+      const trimmed = newNick.trim().slice(0, 16);
+      if (!trimmed) return;
+      const oldNick = myNick;
+      myNick = trimmed;
+      nicknameInput.value = trimmed;
+
+      // Отправляем обновление всем
+      const stateMsg = {
+        type: 'playerState',
+        id: myId,
+        nick: myNick,
+        x: myPos.x,
+        y: myPos.y,
+        color: myColor,
+        timestamp: Date.now()
+      };
+      sendToAll(stateMsg);
+
+      addSystemMessage(`Вы сменили ник с ${oldNick} на ${trimmed}`);
+    }
+
+    setNickBtn.addEventListener('click', () => setNickname(nicknameInput.value));
+    nicknameInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        setNickname(nicknameInput.value);
+      }
+    });
+
+    // ========== УПРАВЛЕНИЕ ==========
+    canvas.addEventListener('click', (e) => {
+      if (!gameStarted) return;
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const mouseX = (e.clientX - rect.left) * scaleX;
+      const mouseY = (e.clientY - rect.top) * scaleY;
+
+      targetPos.x = Math.min(Math.max(mouseX, PLAYER_RADIUS), CANVAS_W - PLAYER_RADIUS);
+      targetPos.y = Math.min(Math.max(mouseY, PLAYER_RADIUS), CANVAS_H - PLAYER_RADIUS);
+    });
+
+    // ========== ОБНОВЛЕНИЕ ПОЗИЦИЙ ==========
+    function updateMyPosition() {
+      const dx = targetPos.x - myPos.x;
+      const dy = targetPos.y - myPos.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist > 1) {
+        const move = Math.min(MOVE_SPEED, dist);
+        myPos.x += (dx / dist) * move;
+        myPos.y += (dy / dist) * move;
+      } else {
+        myPos.x = targetPos.x;
+        myPos.y = targetPos.y;
+      }
+    }
+
+    function updateRemotePlayers() {
+      for (const p of players.values()) {
+        const dx = p.targetX - p.x;
+        const dy = p.targetY - p.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > 1.5) {
+          const move = Math.min(MOVE_SPEED * 0.9, dist);
+          p.x += (dx / dist) * move;
+          p.y += (dy / dist) * move;
+        } else {
+          p.x = p.targetX;
+          p.y = p.targetY;
+        }
+      }
+    }
+
+    // ========== ОТРИСОВКА ==========
+    function draw() {
+      ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+
+      ctx.fillStyle = '#1f2937';
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+      // Сетка
+      ctx.strokeStyle = '#2d3748';
+      ctx.lineWidth = 1;
+      const step = 40;
+      for (let i = 0; i <= CANVAS_W; i += step) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i, CANVAS_H);
+        ctx.stroke();
+      }
+      for (let i = 0; i <= CANVAS_H; i += step) {
+        ctx.beginPath();
+        ctx.moveTo(0, i);
+        ctx.lineTo(CANVAS_W, i);
+        ctx.stroke();
+      }
+
+      // Другие игроки
+      for (const p of players.values()) {
+        drawPlayer(p.x, p.y, p.color, p.nick, false);
+      }
+
+      // Мой игрок
+      drawPlayer(myPos.x, myPos.y, myColor, myNick, true);
+
+      // Индикатор цели
+      if (gameStarted && Math.hypot(targetPos.x - myPos.x, targetPos.y - myPos.y) > 2) {
+        ctx.beginPath();
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 2;
+        ctx.moveTo(targetPos.x - 8, targetPos.y - 8);
+        ctx.lineTo(targetPos.x + 8, targetPos.y + 8);
+        ctx.moveTo(targetPos.x + 8, targetPos.y - 8);
+        ctx.lineTo(targetPos.x - 8, targetPos.y + 8);
+        ctx.stroke();
+      }
+    }
+
+    function drawPlayer(x, y, color, nick, isSelf) {
+      ctx.beginPath();
+      ctx.arc(x + 2, y + 2, PLAYER_RADIUS, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(x, y, PLAYER_RADIUS, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.shadowColor = isSelf ? '#ffffff80' : '#00000060';
+      ctx.shadowBlur = isSelf ? 18 : 8;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      ctx.strokeStyle = isSelf ? '#ffffff' : '#00000040';
+      ctx.lineWidth = isSelf ? 3 : 1.5;
+      ctx.stroke();
+
+      ctx.font = 'bold 12px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillStyle = '#ffffffdd';
+      ctx.shadowColor = '#000000';
+      ctx.shadowBlur = 6;
+      ctx.fillText(nick, x, y - PLAYER_RADIUS - 6);
+      ctx.shadowBlur = 0;
+    }
+
+    function updatePlayerCount() {
+      const total = 1 + players.size;
+      playerCountSpan.textContent = total;
+    }
+
+    // ========== ИГРОВОЙ ЦИКЛ ==========
+    function gameLoop() {
+      updateMyPosition();
+      updateRemotePlayers();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    // ========== ПЕРИОДИЧЕСКАЯ ОТПРАВКА ПОЗИЦИИ ==========
+    setInterval(() => {
+      if (gameStarted && peer && peer.open) {
+        const stateMsg = {
+          type: 'playerState',
+          id: myId,
+          nick: myNick,
+          x: myPos.x,
+          y: myPos.y,
+          color: myColor,
+          timestamp: Date.now()
+        };
+        sendToAll(stateMsg);
+      }
+    }, SYNC_INTERVAL);
+
+    // ========== ЗАПУСК ==========
+    gameLoop();
+
+    // Очистка при закрытии
+    window.addEventListener('beforeunload', () => {
+      if (peer && peer.open) {
+        sendToAll({
+          type: 'playerLeave',
+          id: myId,
+          nick: myNick
+        });
+      }
+      if (peer) {
+        try { peer.destroy(); } catch(e) {}
+      }
+    });
+  })();
+</script>
+</body>
+</html>
